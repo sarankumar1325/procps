@@ -211,6 +211,20 @@ fn test_most_extended() {
 
 #[test]
 #[cfg(target_os = "linux")]
+fn test_most_extended_short_xx() {
+    let pid = process::id();
+
+    let result = new_ucmd!()
+        .arg("-XX")
+        .arg(pid.to_string())
+        .succeeds()
+        .stdout_move_str();
+
+    assert_most_extended_format(pid, &result, false, false);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
 fn test_extended_permission_denied() {
     for arg in ["-x", "--extended"] {
         let result = new_ucmd!()

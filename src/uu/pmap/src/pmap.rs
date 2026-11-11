@@ -8,6 +8,7 @@ use maps_format_parser::{parse_map_line, MapLine};
 use pmap_config::{create_rc, pmap_field_name, PmapConfig};
 use smaps_format_parser::{parse_smaps, SmapTable};
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{Error, ErrorKind};
 use uucore::error::{set_exit_code, UResult, USimpleError};
@@ -31,9 +32,34 @@ mod options {
     pub const RANGE: &str = "range";
 }
 
+/// GNU pmap treats `-XX` as one option (the most detailed maps table), not `-X` twice.
+/// clap cannot represent a two-character short flag next to `-X`, so rewrite the short
+/// form to the existing `--XX` flag before parsing. `-X -X` is still rejected.
+fn rewrite_xx_short_option(args: impl uucore::Args) -> Vec<OsString> {
+    let mut out = Vec::new();
+    let mut passthrough = false;
+    for arg in args {
+        if passthrough {
+            out.push(arg);
+            continue;
+        }
+        if arg == "--" {
+            passthrough = true;
+            out.push(arg);
+            continue;
+        }
+        if arg == "-XX" {
+            out.push(OsString::from("--XX"));
+        } else {
+            out.push(arg);
+        }
+    }
+    out
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
-    let matches = uu_app().try_get_matches_from(args)?;
+    let matches = uu_app().try_get_matches_from(rewrite_xx_short_option(args))?;
 
     if matches.get_flag(options::CREATE_RC) {
         let path = pmap_config::get_rc_default_path();
